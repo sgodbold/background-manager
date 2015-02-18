@@ -1,23 +1,36 @@
 import os
 import subprocess
 import time
+import random
 from collections import deque
+from threading import Timer
+import sys
+import select
 
-WALLPAPER_DIR = "~/.wallpaper/"
-history = deque().maxlen(5)
+WALLPAPER_DIR = "/home/raelon/.wallpaper/"
+TIMEOUT = 15
+#history = deque('end').maxlen(5)
+history = deque(['1'], maxlen=5)
 current_pic = None
 
 def main():
     options = {
-            'next': 'next_image',
-            'previous': 'prev_image'
-            'history': 'print_history'
+        'next': 'next_image',
+        'previous': 'prev_image',
+        'history': 'print_history'
     }
 
     while(True):
-        next_image()
-        time.sleep(60)
+        command = rotate_and_wait()
+        print("command = " + command)
 
+def rotate_and_wait():
+    while(True):
+        next_image()
+        print("bg$ ", end="", flush=True)
+        ready, _, _ = select.select([sys.stdin], [], [], TIMEOUT)
+        if ready:
+            return sys.stdin.readline().rstrip('\n')
 
 # Insecurely allows for a bash command to be executed because I'm lazy.
 # Returns the bash commands output.
@@ -40,13 +53,13 @@ def next_image():
 
     history.append(current_pic)
     current_pic = random.choice(os.listdir(WALLPAPER_DIR))
-    bash("feh --bg-max " + current_pic)
+    bash("feh --bg-max " + WALLPAPER_DIR + current_pic)
 
 def prev_image():
     global history
 
     current_pic =history.pop()
-    bash("feh --bg-max " + current_pic)
+    bash("feh --bg-max " + WALLPAPER_DIR + current_pic)
 
 def print_history():
     global history
