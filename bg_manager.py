@@ -1,9 +1,7 @@
 import os
 import subprocess
-import time
 import random
 from collections import deque
-from threading import Timer
 import sys
 import select
 import time
@@ -70,8 +68,8 @@ def print_menu():
     print("next\t\t|\tskip to the next wallpaper")
     print("previous\t|\tgo back to the last wallpaper")
     print("delete\t\t|\tdelete the current wallpaper and skip to the next one")
-    print("history\t|\tprint a list of previously viewed images.")
-    print("current\t|\tprint the filename of the current image.")
+    print("history\t\t|\tprint a list of previously viewed images.")
+    print("current\t\t|\tprint the filename of the current image.")
 
 def next_image():
     """ Skips to the next image, and updates history """
