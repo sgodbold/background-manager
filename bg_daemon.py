@@ -40,11 +40,19 @@ def client_conn(q):
             try:
                 with listener.accept() as conn:
                     while(True):
+                        # message from client
                         msg = conn.recv()
                         q.put(msg)
+                        # confirmation from daemon
+                        confirm = q.get(msg)
+                        conn.send(confirm)
+                        print("Sent confirmation")
             # Catch errors when connection is unexectedly closed
             except Exception as e:
                 print("Caught exception at listener")
+
+def delete_img():
+    return False
 
 def load_config():
     global _wallpaper_path
@@ -75,15 +83,28 @@ def main():
     queue = Queue()
     p = Process(target=client_conn, args=(queue,))
 
+    options = {
+        'next': next_img,
+        'previous': prev_img,
+        'toggle_freeze': set_freeze,
+        'set': set_img,
+        'delete': delete_img
+    }
 
     try:
         p.start()
         while True:
             msg = rotate_n_wait(queue)
-            print("got message: " + msg)
+            try:
+                print("Got command: " + msg)
+                confirm = options[msg]()
+                queue.put(confirm)
+            except:
+                print("Unknown command: " + msg)
+                queue.put(False)
     except Exception as e:
+        # Safely terminate process
         p.join()
-        print("Caught exception at main")
 
     return 0
 
@@ -92,11 +113,34 @@ def next_img():
     global _wallpaper_path
     global _images
 
+    print("next img")
+
     img = random.choice(os.listdir(_wallpaper_path))
     _images.appendleft(img)
     bash("feh --bg-max " + _wallpaper_path + img)
 
-    return
+    return True
+
+def prev_img():
+    """ Goes to previous image. """
+    global _wallpaper_path
+    global _images
+
+    print("prev img")
+
+    try:
+        _images.pop_left()
+        bash("feh --bg-max " + _wallpaper_path + _images[0])
+        return True
+    except:
+        print("No previous images")
+        return False
+
+def set_freeze():
+    return False
+
+def set_img():
+    return False
 
 def rotate_n_wait(queue):
     """ Rotates wallpaper until a command from the client is recieved.
@@ -111,14 +155,12 @@ def rotate_n_wait(queue):
         try:
             if time.time() - _prev_rotate > _timeout:
                 next_img()
-                print("Changing wallpaper")
                 _prev_rotate = time.time()
             result = queue.get(True, _timeout)
         except KeyboardInterrupt as e: # Catch Ctrl-c and properly stop code
-            print("Caught exception in rotate_n_wait")
             return e
         except: # Catch empty result error
-            print("next")
+            pass
 
     return result
 
