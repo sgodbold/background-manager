@@ -6,6 +6,7 @@ import subprocess
 import random
 import select
 import time
+import sys
 import os
 
 # Global settings
@@ -34,11 +35,16 @@ def client_conn(q):
 
     address = ('localhost', _port)
 
-    with Listener(address, authkey=_authkey) as listener:
-        with listener.accept() as conn:
-            msg = conn.recv()
-            q.put(msg)
-            return
+    while(True):
+        with Listener(address, authkey=_authkey) as listener:
+            try:
+                with listener.accept() as conn:
+                    while(True):
+                        msg = conn.recv()
+                        q.put(msg)
+            # Catch errors when connection is unexectedly closed
+            except Exception as e:
+                print("Caught exception at listener")
 
 def load_config():
     global _wallpaper_path
@@ -66,9 +72,18 @@ def load_config():
 def main():
     load_config()
 
-    while True:
-        msg = rotate_n_wait()
-        print("got message: " + msg)
+    queue = Queue()
+    p = Process(target=client_conn, args=(queue,))
+
+
+    try:
+        p.start()
+        while True:
+            msg = rotate_n_wait(queue)
+            print("got message: " + msg)
+    except Exception as e:
+        p.join()
+        print("Caught exception at main")
 
     return 0
 
@@ -83,7 +98,7 @@ def next_img():
 
     return
 
-def rotate_n_wait():
+def rotate_n_wait(queue):
     """ Rotates wallpaper until a command from the client is recieved.
         Returns the string sent from the client. """
     global _wallpaper_path
@@ -91,10 +106,7 @@ def rotate_n_wait():
     global _timeout
 
     result = None
-    queue = Queue()
-    p = Process(target=client_conn, args=(queue,))
 
-    p.start()
     while not result:
         try:
             if time.time() - _prev_rotate > _timeout:
@@ -102,9 +114,11 @@ def rotate_n_wait():
                 print("Changing wallpaper")
                 _prev_rotate = time.time()
             result = queue.get(True, _timeout)
-        except:
+        except KeyboardInterrupt as e: # Catch Ctrl-c and properly stop code
+            print("Caught exception in rotate_n_wait")
+            return e
+        except: # Catch empty result error
             print("next")
-    p.join()
 
     return result
 
