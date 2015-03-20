@@ -1,6 +1,5 @@
 from multiprocessing.connection import Listener
 from multiprocessing import Process, Queue
-from collections import deque
 import configparser
 import subprocess
 import random
@@ -19,7 +18,8 @@ _port = None
 
 # Global values
 _prev_rotate = 0
-_images = None # index 0 is current img
+_freeze = False
+_images = [] # index 0 is current img
 
 def bash(command):
     """ Insecurely allows for a bash command to be executed because I'm lazy.
@@ -46,7 +46,6 @@ def client_conn(q):
                         # confirmation from daemon
                         confirm = q.get(msg)
                         conn.send(confirm)
-                        print("Sent confirmation")
             # Catch errors when connection is unexectedly closed
             except Exception as e:
                 print("Caught exception at listener")
@@ -72,9 +71,6 @@ def load_config():
     _timeout = int(config['daemon']['timeout'])
     _port = int(config['daemon']['port'])
 
-    # Initialize deque
-    _images = deque([], maxlen=_history_size)
-
     return
 
 def main():
@@ -87,7 +83,8 @@ def main():
         'next': next_img,
         'previous': prev_img,
         'toggle_freeze': set_freeze,
-        'set': set_img,
+        'set_image': set_img,
+        'set_timeout': set_timeout,
         'delete': delete_img
     }
 
@@ -95,15 +92,18 @@ def main():
         p.start()
         while True:
             msg = rotate_n_wait(queue)
+            msg = msg.split(' ', maxsplit=1)
             try:
-                print("Got command: " + msg)
-                confirm = options[msg]()
+                if len(msg) == 1:
+                    confirm = options[msg[0]]()
+                else:
+                    confirm = options[msg[0]](msg[1])
                 queue.put(confirm)
             except:
                 print("Unknown command: " + msg)
                 queue.put(False)
     except Exception as e:
-        # Safely terminate process
+        # Safely terminate side process
         p.join()
 
     return 0
@@ -111,36 +111,63 @@ def main():
 def next_img():
     """ Continues to the next image. """
     global _wallpaper_path
+    global _history_size
+    global _prev_rotate
     global _images
 
     print("next img")
 
+    # Grab next image
     img = random.choice(os.listdir(_wallpaper_path))
-    _images.appendleft(img)
+    _images.insert(0, img)
     bash("feh --bg-max " + _wallpaper_path + img)
+
+    # Trim images list
+    if len(_images) > _history_size:
+        _images.pop(_history_size)
+
+    # reset timer
+    _prev_rotate = time.time()
+
 
     return True
 
 def prev_img():
     """ Goes to previous image. """
     global _wallpaper_path
+    global _prev_rotate
     global _images
 
     print("prev img")
 
     try:
-        _images.pop_left()
+        # Grab previous image
+        _images.pop(0)
         bash("feh --bg-max " + _wallpaper_path + _images[0])
+
+        # reset timer
+        _prev_rotate = time.time()
+
         return True
     except:
         print("No previous images")
         return False
 
 def set_freeze():
-    return False
+    global _freeze
+    _freeze = not _freeze
+
+    return True
 
 def set_img():
     return False
+
+def set_timeout(time):
+    global _timeout
+    _timeout = int(time)
+    print("Set timeout to %d" % int(time))
+
+    return True
 
 def rotate_n_wait(queue):
     """ Rotates wallpaper until a command from the client is recieved.
@@ -148,12 +175,13 @@ def rotate_n_wait(queue):
     global _wallpaper_path
     global _prev_rotate
     global _timeout
+    global _freeze
 
     result = None
 
     while not result:
         try:
-            if time.time() - _prev_rotate > _timeout:
+            if _freeze == False and time.time() - _prev_rotate > _timeout:
                 next_img()
                 _prev_rotate = time.time()
             result = queue.get(True, _timeout)

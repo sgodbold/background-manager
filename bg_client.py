@@ -39,7 +39,8 @@ def main():
         'next': send,
         'previous': send,
         'toggle_freeze': send,
-        'set': send,
+        'set_image': send,
+        'set_timeout': send,
         'delete': send,
         'exit': exit
     }
@@ -58,13 +59,14 @@ def main():
     return 0
 
 def print_menu(msg=''):
-    print("help".ljust(15) + "|\t" + "Prints this menu")
-    print("next".ljust(15) + "|\t" + "Skips to the next image")
-    print("previous".ljust(15) + "|\t" + "Goes back to previous image")
-    print("toggle_freeze".ljust(15) + "|\t" + "Turns image rotation on / off")
-    print("set [seconds]".ljust(15) + "|\t" + "Sets the rotation timeout to [seconds]")
-    print("delete".ljust(15) + "|\t" + "Deletes current image. Requires rotation to be frozen")
-    print("exit".ljust(15))
+    print("help".ljust(30) + "|\t\t" + "Prints this menu")
+    print("next".ljust(30) + "|\t\t" + "Skips to the next image")
+    print("previous".ljust(30) + "|\t\t" + "Goes back to previous image")
+    print("toggle_freeze".ljust(30) + "|\t\t" + "Turns image rotation on / off")
+    print("set_image [/path/to/image]".ljust(30) + "|\t\t" + "Set a specific image")
+    print("set_timeout [seconds]".ljust(30) + "|\t\t" + "Sets the rotation timeout to [seconds]")
+    print("delete".ljust(30) + "|\t\t" + "Deletes current image. Requires rotation to be frozen")
+    print("exit".ljust(30))
     return
 
 def send(msg):
