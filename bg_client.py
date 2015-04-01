@@ -5,8 +5,8 @@ import sys
 # Global settings
 _config_path = '/home/raelon/.config/bg/settings.conf'
 _authkey = None
-_port = None
 _conn = None
+_port = None
 
 def exit(msg=''):
     """ Closes connection with daemon and exits program. """
@@ -29,19 +29,20 @@ def load_config():
 
 def main():
     global _authkey
-    global _port
     global _conn
+    global _port
 
     load_config()
 
     options = {
-        'help': print_menu,
-        'next': send,
-        'previous': send,
         'toggle_freeze': send,
-        'set_image': send,
         'set_timeout': send,
+        'help': print_menu,
+        'set_image': send,
+        'previous': send,
+        'current': send,
         'delete': send,
+        'next': send,
         'exit': exit
     }
 
@@ -53,8 +54,9 @@ def main():
             if msg:
                 try:
                     options[msg.split(' ')[0]](msg)
-                except Exception:
+                except Exception as e:
                     print("ERROR: Unknown command " + msg)
+                    print(e)
 
     return 0
 
@@ -62,6 +64,7 @@ def print_menu(msg=''):
     print("help".ljust(30) + "|\t\t" + "Prints this menu")
     print("next".ljust(30) + "|\t\t" + "Skips to the next image")
     print("previous".ljust(30) + "|\t\t" + "Goes back to previous image")
+    print("current".ljust(30) + "|\t\t" + "Prints the current image")
     print("toggle_freeze".ljust(30) + "|\t\t" + "Turns image rotation on / off")
     print("set_image [/path/to/image]".ljust(30) + "|\t\t" + "Set a specific image")
     print("set_timeout [seconds]".ljust(30) + "|\t\t" + "Sets the rotation timeout to [seconds]")
@@ -75,11 +78,16 @@ def send(msg):
 
     _conn.send(msg)
     confirm = _conn.recv()
+    #print(confirm)
 
-    if confirm:
-        print("Command completed")
+    if confirm[0] == True:
+        if len(confirm) > 1:
+            print("    " + confirm[1])
     else:
-        print("Error from daemon!")
+        if len(confirm) == 0:
+            print("Error from daemon!")
+        else:
+            print("Error: %s" % confirm[1])
 
     return
 

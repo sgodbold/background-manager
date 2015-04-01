@@ -48,15 +48,19 @@ def client_conn(q):
                         conn.send(confirm)
             # Catch errors when connection is unexectedly closed
             except Exception as e:
-                print("Caught exception at listener")
+                print("Client disconnected")
 
 def delete_img():
-    return False
+    return (False,)
+
+def get_current():
+    global _images
+    return (True, _images[0])
 
 def load_config():
     global _wallpaper_path
-    global _config_path
     global _history_size
+    global _config_path
     global _authkey
     global _timeout
     global _images
@@ -80,12 +84,13 @@ def main():
     p = Process(target=client_conn, args=(queue,))
 
     options = {
-        'next': next_img,
-        'previous': prev_img,
         'toggle_freeze': set_freeze,
-        'set_image': set_img,
         'set_timeout': set_timeout,
-        'delete': delete_img
+        'current': get_current,
+        'previous': prev_img,
+        'set_image': set_img,
+        'delete': delete_img,
+        'next': next_img
     }
 
     try:
@@ -103,24 +108,23 @@ def main():
                 print("Unknown command: " + msg)
                 queue.put(False)
     except Exception as e:
-        # Safely terminate side process
+        # Safely terminate side process on interrupt
         p.join()
 
     return 0
 
 def next_img():
-    """ Continues to the next image. """
+    """ Continues to the next image. Sends the image name back to the client """
     global _wallpaper_path
     global _history_size
     global _prev_rotate
     global _images
 
-    print("next img")
-
     # Grab next image
     img = random.choice(os.listdir(_wallpaper_path))
     _images.insert(0, img)
     bash("feh --bg-max " + _wallpaper_path + img)
+    print("next img " + _images[0])
 
     # Trim images list
     if len(_images) > _history_size:
@@ -129,8 +133,7 @@ def next_img():
     # reset timer
     _prev_rotate = time.time()
 
-
-    return True
+    return (True, _images[0])
 
 def prev_img():
     """ Goes to previous image. """
@@ -138,36 +141,51 @@ def prev_img():
     global _prev_rotate
     global _images
 
-    print("prev img")
-
     try:
         # Grab previous image
         _images.pop(0)
         bash("feh --bg-max " + _wallpaper_path + _images[0])
+        print("prev img " + _images[0])
 
         # reset timer
         _prev_rotate = time.time()
 
-        return True
+        return (True, _images[0])
     except:
         print("No previous images")
-        return False
+        return (False, "No history")
 
 def set_freeze():
     global _freeze
     _freeze = not _freeze
 
-    return True
+    if _freeze:
+        print("Froze rotation")
+        return (True, "Rotation frozen")
+    else:
+        print("Unfroze rotation")
+        return (True, "Rotation unfrozen")
 
-def set_img():
-    return False
+def set_img(path):
+    global _wallpaper_path
+
+    try:
+        # Given a full path
+        if path.split('/')[1] == "home":
+            bash("feh --bg-max " + path)
+        # Assume from wallpaper dir
+        else:
+            bash("feh --bg-max " + _wallpaper_path + path)
+        return (True,)
+    except:
+        return (False,)
 
 def set_timeout(time):
     global _timeout
     _timeout = int(time)
     print("Set timeout to %d" % int(time))
 
-    return True
+    return (True,)
 
 def rotate_n_wait(queue):
     """ Rotates wallpaper until a command from the client is recieved.
