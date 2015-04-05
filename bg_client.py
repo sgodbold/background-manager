@@ -73,19 +73,19 @@ def print_menu(msg=''):
     return
 
 def send(msg):
-    """ Sends a command and waits for a confirmation. """
+    """ Sends a command and waits for a confirmation. Prints any response
+        or errors the daemon sends. """
     global _conn
 
     _conn.send(msg)
     confirm = _conn.recv()
-    #print(confirm)
 
     if confirm[0] == True:
         if len(confirm) > 1:
             print("    " + confirm[1])
     else:
         if len(confirm) == 0:
-            print("Error from daemon!")
+            print("Error! You should probably restart the daemon and client...")
         else:
             print("Error: %s" % confirm[1])
 

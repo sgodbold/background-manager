@@ -21,13 +21,6 @@ _prev_rotate = 0
 _freeze = False
 _images = [] # index 0 is current img
 
-def bash(command):
-    """ Insecurely allows for a bash command to be executed because I'm lazy.
-        Returns stdout from the command. """
-
-    return subprocess.Popen([command], shell=True, stdout=subprocess.PIPE)\
-            .communicate()[0]
-
 def client_conn(q):
     """ Listens for commands sent from the client. """
     global _authkey
@@ -54,8 +47,14 @@ def delete_img():
     return (False,)
 
 def get_current():
+    """ Sends current image name to client. """
     global _images
     return (True, _images[0])
+
+def feh(path):
+    """ Uses the bash command feh to set the background images. """
+    return subprocess.Popen(["feh --bg-max " + path], shell=True,\
+            stdout=subprocess.PIPE).communicate()[0]
 
 def load_config():
     global _wallpaper_path
@@ -123,7 +122,8 @@ def next_img():
     # Grab next image
     img = random.choice(os.listdir(_wallpaper_path))
     _images.insert(0, img)
-    bash("feh --bg-max " + _wallpaper_path + img)
+    #bash("feh --bg-max " + _wallpaper_path + img)
+    feh(_wallpaper_path + img)
     print("next img " + _images[0])
 
     # Trim images list
@@ -136,7 +136,7 @@ def next_img():
     return (True, _images[0])
 
 def prev_img():
-    """ Goes to previous image. """
+    """ Goes to previous image. Returns image name back to client. """
     global _wallpaper_path
     global _prev_rotate
     global _images
@@ -144,7 +144,8 @@ def prev_img():
     try:
         # Grab previous image
         _images.pop(0)
-        bash("feh --bg-max " + _wallpaper_path + _images[0])
+        #bash("feh --bg-max " + _wallpaper_path + _images[0])
+        feh(_wallpaper_path + _images[0])
         print("prev img " + _images[0])
 
         # reset timer
@@ -172,10 +173,12 @@ def set_img(path):
     try:
         # Given a full path
         if path.split('/')[1] == "home":
-            bash("feh --bg-max " + path)
+            #bash("feh --bg-max " + path)
+            feh(path)
         # Assume from wallpaper dir
         else:
-            bash("feh --bg-max " + _wallpaper_path + path)
+            #bash("feh --bg-max " + _wallpaper_path + path)
+            feh(_wallpaper_path + path)
         return (True,)
     except:
         return (False,)
